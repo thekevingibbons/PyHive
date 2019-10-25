@@ -3,7 +3,7 @@ import os
 from multiprocessing import Pool
 #from copy import deepcopy
 from multiprocessing.dummy import Pool as ThreadPool
-from Controllers.Experimenting.Remote import Remote
+from Remote import Remote
 
 class Host(object):
     # Used to check how many cores the remote host has
@@ -184,6 +184,8 @@ class Hive(object):
         # Once we have all the results, send them back
         return allReturnValues
 
+    # Experimental still, different frm buzz in that it passes returned values to localFunction for handling as it gets them rather than 
+    # waiting until all iterations are finished and returning one [potentially gigantic] set of results
     def buzzbuzz(self, function, parameters, localFunction, localProcesses= 1):
         # Pool of processes to handle the execution of the localFunction
         localPool = Pool(processes= localProcesses)
@@ -291,167 +293,3 @@ class Hive(object):
         return results
 
 
-# ===================================================================================================
-# Testing below
-# ===================================================================================================
-# Very simplistic test of Remote.py to ensure connection
-
-'''
-def do_remote_thing(dir='/'):
-    import os
-    print('I am remote!')
-    return os.listdir(dir)
-
-s = Remote('192.168.1.91', 'kevin', '122104', port=22)
-
-try:
-    dir_list = s.run(
-        do_remote_thing,
-        None,
-    )
-except Exception as e:
-    print('I even handle remote exceptions! %s'%e)
-    dir_list = None
-
-for dir in dir_list:
-    print(dir)
-'''
-
-#=======================================================================================================================
-# Testing pip installing dependencies on remote machines
-
-'''
-host = Remote('192.168.1.91', 'kevin', '122104', port=22)
-reqsPath = "C:/Users/theke/Documents/PycharmProjects/BullsOnParadeAlphaVantage/BullsOnParadeAlphaVantage/Controllers/Experimenting/requirements.txt"
-host.pipInstall(reqsPath)
-'''
-
-#=======================================================================================================================
-# Testing moving .py files + classes.
-'''
-host = Remote('192.168.1.91', 'kevin', '122104', port=22)
-
-pyPath = "C:/Users/theke/Documents/PycharmProjects/BullsOnParadeAlphaVantage/BullsOnParadeAlphaVantage/Controllers/Experimenting/Models/DataSets/IntradayEdgeDataSet.py"
-from Controllers.Experimenting.Models.DataSuperClass import DataSuperClass
-pyClass = DataSuperClass
-
-host.setupDependency(pyPath)
-host.setupDependency(pyClass)
-'''
-
-#=======================================================================================================================
-# Testing moving static resources to remote machines
-
-'''
-host = Remote('192.168.1.91', 'kevin', '122104', port=22)
-resourcePath = "C:\\Users\\theke\\Pictures\\Boys at Tetons.jpg"
-resourcePathForwardSlashes = "C:/Users/theke/Pictures/Boys at Tetons.jpg"
-host.copyOverStaticResource(resourcePathForwardSlashes)
-'''
-
-#=======================================================================================================================
-# Testing conversion of import statements on remote machines
-'''
-# codeLines = ["from Controllers.Experimenting.Hive import Hive"]
-codeLines = ["import subprocess",
-             "import inspect",
-             "import pickle",
-             "import paramiko",
-             "import sys",
-             "",
-             "#@@@todo: remove",
-             "from time import time",
-             "",
-             "class Remote(object):",
-             "    def __init__(self, host, username=None, password=None, port=22, key_filename=None):",
-             "        self.host = host",
-             "        self.username = username",
-             "        self.password = password",
-             "        self.ssh = paramiko.SSHClient()",
-             "        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())",
-             "        self.ssh.connect(",
-             "            self.host,",
-             "            port = port,",
-             "            username=username,",
-             "            password=password,",
-             "            key_filename=key_filename",
-             "        )"]
-print(Remote.tryExceptFinallyImports(codeLines))
-'''
-
-#=======================================================================================================================
-# Simple test of Hive.buzz multiprocessing
-
-'''
-# The worker function that will be run a bajillion times
-def worker(x, y, z):
-    return x + y - z
-
-if __name__ == '__main__':
-    # Setup the hive
-    hosts = []
-    hosts.append(Host('192.168.1.89', username='kevin', password='122104', port=22, processes=2))  # Silver Dell, 2 cores
-    hosts.append(Host('192.168.1.94', username='kevin', password= '122104', port=22, processes= 4)) # Nora Dell, 2 cores
-    hosts.append(Host('192.168.1.57', username='Kevin', password= 'Arkenemyste7', port=22, processes= 4)) # work MacTop, 4 cores
-    hive = Hive(hosts, sleep=0.2, bees=50, queenProcesses=0)
-
-    # Setup parameters to run over the worker function
-    parameters = []
-    for i in range(0, 500):
-        parameters.append((i, i * 3, (i - 3) * 2))
-        #retval = worker(i, i*3, (i-3)*2)
-
-    startTime = time()
-    # Aaaaaaand we're off
-    retvals = hive.buzz(worker, parameters)
-    #Hive.localShell(worker, 3, parameters)
-    print('Time taken: {0}'.format(time() - startTime))
-    # Just to check that all went well
-    print('Done')
-'''
-
-#=======================================================================================================================
-# Simple test of Hive.buzzbuzz multiprocessing w/ local handling of returned results
-
-'''
-# The worker function that will be run a bajillion times
-def worker(x, y, z):
-    return x + y - z
-
-def localHandling(listOfResults):
-    i = 0
-    for thing in listOfResults:
-        print("{0}: {1}".format(i, thing))
-        i += 1
-
-if __name__ == '__main__':
-    # Setup the hive
-    hosts = []
-    #hosts.append(Host('192.168.1.89', username='kevin', password= '122104', port=22))
-    #hosts.append(Host('192.168.1.90', username='kevin', password= '122104', port=22))
-    hosts.append(Host('192.168.1.91', username='kevin', password= '122104', port=22))
-    hive = Hive(hosts, sleep=1, bees=50, queenProcesses=0)
-
-    # Setup parameters to run over the worker function
-    parameters = []
-    for i in range(0, 50):
-        parameters.append((i, i * 3, (i - 3) * 2))
-        #retval = worker(i, i*3, (i-3)*2)
-
-    startTime = time()
-    # Aaaaaaand we're off
-    hive.buzzbuzz(worker, parameters, localHandling)
-    #Hive.localShell(worker, 3, parameters)
-    print('Time taken: {0}'.format(time() - startTime))
-    # Just to check that all went well
-    print('Done')
-'''
-
-#=======================================================================================================================
-# Actually moving SQLite resources to remote machines
-
-'''
-host = Remote('192.168.1.91', 'kevin', '122104', port=22)
-resourcePath = "C:/Users/theke/Documents/PycharmProjects/BullsOnParadeAlphaVantage/BullsOnParadeAlphaVantage/Controllers/IntradayData.db"
-host.copyOverStaticResource(resourcePath)
-'''
